@@ -2,17 +2,27 @@ package algorithms;
 
 import java.awt.Point;
 import java.util.ArrayList;
-
-import supportGUI.Circle;
-import supportGUI.Line;
-
+import java.util.Vector;
+import java.util.Iterator;
 import java.util.ListIterator;
 
 import com.sun.org.apache.xalan.internal.xsltc.compiler.sym;
 
-
+import supportGUI.Circle;
+import supportGUI.Line;
 
 public class DefaultTeam {
+
+
+	class PaireAntipodale{
+		public PaireAntipodale(Point p, Point q){
+			  this.p = p;
+			  this.q = q;
+		  }
+		  public Point p;
+		  public Point q;
+		  
+	}
 
   // calculDiametre: ArrayList<Point> --> Line
   //   renvoie une pair de points de la liste, de distance maximum.
@@ -30,20 +40,129 @@ public class DefaultTeam {
     return new Line(p,q);
   }
 
-  // calculDiametreOptimise: ArrayList<Point> --> Line
+  // calculDiametremise: ArrayList<Point> --> Line
   //   renvoie une pair de points de la liste, de distance maximum.
   public Line calculDiametreOptimise(ArrayList<Point> points) {
-    if (points.size()<3) {
-      return null;
-    }
+	  System.out.println("calculDiametreOptimal");
+	  if (points.size()<3)
+		  return null;
+	  ArrayList<Point> enveloppe = enveloppeConvexeJarvis(points);
+	  ArrayList<PaireAntipodale> antipodales = antipodales(enveloppe);
+	  PaireAntipodale diam = diametre(antipodales);
+	  return new Line(diam.p, diam.q);
+  }
+  
+  private ArrayList<Point> enveloppeConvexeJarvis(ArrayList<Point> points){
+	  System.out.println("[Javis] IN : " + points.size() );
+	  ArrayList<Point> enveloppe = new ArrayList<>();
+	  
+	  
+	  Iterator<Point> sp_it = points.iterator();
+	  Point p = sp_it.next();
+	  while(sp_it.hasNext()){
+		  Point sp = sp_it.next();
+		  if(sp.x < p.x)
+			  p = sp;
+	  }
+	  
+	  Point first = p;
+	  
+	  do{
+		  enveloppe.add(p);
+		  Point q = null;
+		  for(Point sq : points){
+			  if(!p.equals(sq))
+			  {
+				  q = sq;
+				  break;
+			  }
+		  }
+		  if(q == null)
+			  return enveloppe;
+		  for(Point sq : points){
+			  double prod = prodVec(p, q, sq);
+			  if(prod > 0)
+				  continue;
+			  else if(prod == 0){
+				  if(distanceSquare(p, sq) > distanceSquare(p, q))
+					  q = sq;
+			  }
+			  else
+				  q = sq;
+		  }
+		  p = q;
+	  } while(!p.equals(first));
+	  
+	  System.out.println("[Jarvis] OUT : " + enveloppe.size());
+	  return enveloppe;
+  }
+  
+  static private int square(int x){
+	  return x * x;
+  }
+  
+  static private int distanceSquare(Point p, Point q){
+	  return square(q.x - p.x) + square(q.y - p.y);
+  }
 
-    Point p=points.get(1);
-    Point q=points.get(2);
+  
+  PaireAntipodale diametre(ArrayList<PaireAntipodale> antipodales) {
+	  System.out.println("diametre");
+	  double dist_sq_diam = 0;
+	  PaireAntipodale diam = null;
+		
+	  for(PaireAntipodale paire : antipodales){
+		double dist_sq_paire = distanceSquare(paire.p, paire.q);
+		
+		if(dist_sq_diam < dist_sq_paire){
+			dist_sq_diam = dist_sq_paire;
+			diam = paire;
+			
+		}
+		
+	  }
+	  return diam;
+  }
+  private double distanceSquareOrtho(Point p, Point q, Point s){
+	  return Math.abs((q.x - p.x) * (s.y - p.y) -  ( q.y - p.y) * (s.x - p.x));
+	  
+//	  System.out.println("[distanceSquareOrtho] : " + (q.x - p.x));
+//	  double a = (q.y - p.y);
+//	  double b = -1;
+//	  double c = p.y - a * p.x;
+//	  return square(a*s.x + b*s.y + c) / distanceSquare(p, q);
+  }
 
-    /*******************
-     * PARTIE A ECRIRE *
-     *******************/
-    return new Line(p,q);
+  ArrayList<PaireAntipodale> antipodales(ArrayList<Point> enveloppe){
+	  ArrayList<PaireAntipodale> anti = new ArrayList<>();
+    
+	  int k = 1;
+	  Point p = enveloppe.get(0);
+	  Point q = enveloppe.get(enveloppe.size() - 1);
+	  
+	  double dk = distanceSquareOrtho(p, q, enveloppe.get(k));
+	  double dkk = distanceSquareOrtho(p, q, enveloppe.get(k + 1));
+	  while(k < enveloppe.size() - 1 && dk < dkk){
+		  k += 1;
+		  dk = distanceSquareOrtho(p, q, enveloppe.get(k));
+		  dkk = distanceSquareOrtho(p, q, enveloppe.get(k + 1));
+	  }
+    
+	  int i = 0;
+    
+	  while(i <= k && k + 1 < enveloppe.size()){
+		  p = enveloppe.get(i);
+		  q = enveloppe.get(i + 1);
+		  dk = distanceSquareOrtho(p, q, enveloppe.get(k));
+		  dkk = distanceSquareOrtho(p, q, enveloppe.get(k + 1));
+		  while(k + 1 < enveloppe.size() && dk < dkk){
+			  anti.add(new PaireAntipodale(p, enveloppe.get(k)));
+			  k += 1;
+		  }
+		  anti.add(new PaireAntipodale(p, enveloppe.get(k)));
+		  i += 1;
+	  }
+	  return anti;
   }
 
   // calculCercleMin: ArrayList<Point> --> Circle
@@ -65,27 +184,15 @@ public class DefaultTeam {
   // < 0 : p à gauche a (ab)
   // = 0 : p appartient à (ab)
   // > 0 : p à droite a (ab)
-  double prodVec(Point a, Point b, Point p){
+  private double prodVec(Point a, Point b, Point p){
 	  return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   }
-  
 
-  static private int distanceSquare(Point p, Point q)
-  {
-	  return (q.x - p.x)*(q.x - p.x) + (q.y - p.y)*(q.y - p.y);
+  
+  public double scalarProduct(Point p , Point q) {
+      return p.x * q.x + p.y * q.y;
   }
   
-  private boolean isBetweenOrder(int a, double x, int b)
-  {
-	  return a <= x && x <= b;
-  }
-	  
-  private boolean isBetween(int a, int x, int b)
-  {
-	  return (Math.abs(x - a) <= Math.abs(b - a));
-  }
-  
-
   public ArrayList<Point> enveloppeConvexeNaif(ArrayList<Point> points){
 	  ArrayList<Point> enveloppe = new ArrayList<Point>();
 	  
@@ -147,8 +254,7 @@ public class DefaultTeam {
   }
   
   public ArrayList<Point> filtrerPointsAlignes(ArrayList<Point> points){
-
-	  
+	  System.out.println("filtrerPointsAlignes");
 	  ArrayList<Point> tmp = new ArrayList<Point>();
 	  
 	  for(int i  = 0; i < points.size(); i++){
@@ -162,35 +268,111 @@ public class DefaultTeam {
 		  }
 		  if(tmp.size()<=2)
 			  continue;
-		  Point maxX=tmp.get(0), minX=tmp.get(0);
+		  Point maxY=tmp.get(0), minY=tmp.get(0);
 		  for(int j  = 0; j < tmp.size(); j++) {
 			  Point t = tmp.get(j);
-			  if(t.getY() > maxX.getY()) {
+			  if(t.getY() > maxY.getY()) {
+				  maxY = t;
+			  }
+			  if(t.getY() < minY.getY()) {
+				  minY = t;
+			  }
+		  }
+		  for(int j  = 0; j < tmp.size(); j++) {
+			  Point t = tmp.get(j);
+			  if(t.y <maxY.y && t.y>minY.y) {
+				  points.remove(t);
+			  }
+		  }
+	  }
+	  	 
+	  for(int i  = 0; i < points.size(); i++){
+		  Point p = points.get(i);
+		  tmp.clear();
+		  for(int j  = 0; j < points.size(); j++){
+			  Point q = points.get(j);
+			  if(p.getY() == q.getY()) {
+				  tmp.add(q);
+			  }
+		  }
+		  if(tmp.size()<=2)
+			  continue;
+		  Point maxX=tmp.get(0), minX=tmp.get(0);
+		  for(int j = 0; j < tmp.size(); j++) {
+			  Point t = tmp.get(j);
+			  if(t.getX() > maxX.getX()) {
 				  maxX = t;
 			  }
 			  if(t.getY() < minX.getY()) {
 				  minX = t;
 			  }
-				 
 		  }
-		  System.out.println(maxX.y + " | " + minX.y);
 		  for(int j  = 0; j < tmp.size(); j++) {
 			  Point t = tmp.get(j);
-			  if(t.y <maxX.y && t.y>minX.y) {
+			  if(t.x < maxX.x && t.x > minX.x) {
 				  points.remove(t);
 			  }
 		  }
-		
 	  }
-	  	  
+	  
 	  System.out.println("[filtre] len Point : " + points.size());
 	  return points ;
   }
+  
+  private ArrayList<Point> rectangleMin(ArrayList<Point> points)
+  {
+	ArrayList<Point> enveloppe = enveloppeConvexeJarvis(points);
+	
+    ArrayList<PaireAntipodale> antipodales = antipodales(enveloppe);
+	
+    PaireAntipodale diam = diametre(antipodales);
+    
+    ArrayList<Point> rectangle = new ArrayList<>();
 
- 
-  public ArrayList<Point> filtrerPointsAlignesAkl(ArrayList<Point> points){
-	  ArrayList<Point> result = new ArrayList<Point>();
+    int west = points.get(0).x,east = points.get(0).x;
+    int north= points.get(0).y, south = points.get(0).y;
+	
+    Point pw=points.get(0),pe=points.get(0),pn=points.get(0),ps=points.get(0);
 	  
+    for(int i  = 1; i < points.size(); i++){
+		  Point p =points.get(i); 
+		  if(p.x < west) {
+			  pw = p;
+			  west=pw.x;
+		  }
+		  if(p.x > east) {
+			  pe = p;
+			  east=pe.x;
+		  }
+		  if(p.y < north) {
+			  pn = p;
+			  north=pn.y;
+		  }
+		  if(p.y > south) {
+			  ps = p;
+			  south=ps.y;
+		  }
+	  }
+    
+    double mdiam = (diam.q.y - diam.p.y) / (diam.q.x - diam.p.x);
+    
+    
+    rectangle.add(new Point(diam.p.x,pn.y));
+    rectangle.add(new Point(diam.q.x ,pn.y));
+    rectangle.add(new Point(diam.q.x,ps.y));
+    rectangle.add(new Point(diam.p.x,ps.y));
+
+    return rectangle;
+  }
+
+  Point intersection(double m1, double p1, double m2, double p2)
+  {
+	  double x = m1;
+	  double y = p2;
+	  return new Point((int)x, (int)y);
+  }
+
+  public ArrayList<Point> filtrerPointsAlignesAkl(ArrayList<Point> points){	  
 	  int west = points.get(0).x,east = points.get(0).x;
 	  int north= points.get(0).y, south = points.get(0).y;
 	  Point pw=points.get(0),pe=points.get(0),pn=points.get(0),ps=points.get(0);
@@ -213,13 +395,7 @@ public class DefaultTeam {
 			  ps = p;
 			  south=ps.y;
 		  }
-		  
 	  }
-	  
-	  result.add(pw);
-	  result.add(pe);
-	  result.add(pn);
-	  result.add(ps);
 	  
 	  for(int i  = 1; i < points.size(); i++){
 		  Point c = points.get(i);
@@ -241,16 +417,13 @@ public class DefaultTeam {
 
     ArrayList<Point> enveloppe = new ArrayList<Point>();
 
-    // naif
-    points = filtrerPointsAlignesAkl((ArrayList<Point>)points.clone());
-    System.out.println("1 nb points : " + points.size());
+    // points = filtrerPointsAlignes((ArrayList<Point>)points.clone());
+    // points = filtrerPointsAlignesAkl((ArrayList<Point>)points.clone());
     //points = filtrerPointsAlignes((ArrayList<Point>)points.clone());
-    //System.out.println("2 nb points : " + points.size());
-
-	enveloppe = enveloppeConvexeNaif(points);
-     
-    return enveloppe;
+	points = enveloppeConvexeJarvis(points);
+    enveloppe =  rectangleMin(points);
+	
+	return points;
   }
- 
-
+  
 }
